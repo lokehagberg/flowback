@@ -9,7 +9,7 @@ from django.utils import timezone
 from datetime import datetime
 
 from flowback.poll.services.vote import poll_proposal_vote_count
-from flowback.poll.tasks import poll_area_vote_count
+from flowback.poll.tasks import poll_area_vote_count, poll_prediction_bet_count
 
 poll_notification = NotificationManager(sender_type='poll', possible_categories=['timeline',
                                                                                  'poll',
@@ -92,6 +92,7 @@ def poll_create(*, user_id: int,
                               timestamp=start_date, related_id=poll.id)
 
     poll_area_vote_count.apply_async(kwargs=dict(poll_id=poll.id), eta=poll.area_vote_end_date)
+    poll_prediction_bet_count.apply_async(kwarsg=dict(poll_id=poll.id), eta=poll.prediction_bet_end_date)
 
     # Poll notification
     for date, name, phase in poll.labels:
@@ -193,7 +194,7 @@ def poll_refresh(*, poll_id: int) -> None:
 def poll_refresh_cheap(*, poll_id: int) -> None:
     poll = get_object(Poll, id=poll_id)
 
-    if (poll.dynamic and not poll.status) or (poll.status and timezone.now() >= poll.end_date):
+    if (poll.dynamic and not poll.status) or (not poll.status and timezone.now() >= poll.end_date):
         poll_proposal_vote_count(poll_id=poll_id)
         poll.refresh_from_db()
 
